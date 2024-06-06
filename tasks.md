@@ -1,10 +1,10 @@
 ### cloud-design Task List
 
 ### Day 1: Project Setup
-- [ ] Select AWS as the cloud provider and document reasons for the choice.
-- [ ] Set up AWS account, IAM users, roles, and billing alerts.
-- [ ] Install and configure Terraform with AWS CLI.
-- [ ] **Documentation**: Document the setup process, reasons for AWS selection, and initial configuration.
+- [x] Select AWS as the cloud provider and document reasons for the choice.
+- [x] Set up AWS account, IAM users, roles, and billing alerts.
+- [x] Install and configure Terraform with AWS CLI.
+- [x] **Documentation**: Document the setup process, reasons for AWS selection, and initial configuration.
 
 ### Day 2: Initial Infrastructure Design
 - [ ] Design basic infrastructure (VPC, subnets, route tables).
