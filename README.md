@@ -16,9 +16,14 @@ I chose AWS for its comprehensive services, global presence, and robust security
   - Created a basic `main.tf` configuration file specifying the AWS provider and region.
   - Added `.terraform/`, `terraform.tfstate`, `terraform.tfstate.backup`, and `.terraform.lock.hcl` to `.gitignore`.
 
-### Terraform Basic Configuration
-```hcl
-provider "aws" {
-  region = "eu-north-1"
-}
-```
+### Initial Infrastructure Design
+- **Design basic infrastructure (VPC, subnets, route tables)**:
+  - Designed a VPC with CIDR block `10.0.0.0/16`.
+  - Created public (`10.0.1.0/24`) and private (`10.0.2.0/24`) subnets.
+  - Configured an Internet Gateway and a Route Table for the public subnet.
+
+- **Create initial Terraform configuration files for VPC setup**:
+  - Defined resources in `main.tf` for VPC, subnets, Internet Gateway, and Route Table.
+
+### Network Architecture Diagram
+![Network Architecture Diagram](https://i.postimg.cc/vZCpBwm8/diagram-export-07-06-2024-18-57-55.png)

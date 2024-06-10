@@ -6,29 +6,39 @@
 - [x] Install and configure Terraform with AWS CLI.
 - [x] **Documentation**: Document the setup process, reasons for AWS selection, and initial configuration.
 
-### Day 2: Initial Infrastructure Design
-- [ ] Design basic infrastructure (VPC, subnets, route tables).
-- [ ] Create initial Terraform configuration files for VPC setup.
-- [ ] Plan resource hierarchy and dependencies.
-- [ ] **Documentation**: Record the design decisions, Terraform configurations, and create a network architecture diagram.
+### Day 2-5: Initial Infrastructure Design
+- [x] Design basic infrastructure (VPC, subnets, route tables).
+- [x] Create initial Terraform configuration files for VPC setup.
 
-### Day 3: Core Services Configuration
-- [ ] Implement core services (EC2 instances, S3 buckets).
-- [ ] Configure security measures (IAM roles, security groups).
-- [ ] Test deployment with Terraform.
-- [ ] **Documentation**: Document core services configuration, security measures, and test results.
+- **Inventory-database**
+  - [x] Updated Dockerfile.
+  - [x] Built and tested Docker image locally.
+  - [x] Deployed in ECS (cluster, task, deployment).
 
-### Day 4: Containerization with Docker
-- [ ] Create Dockerfiles for each microservice.
-- [ ] Optimize Dockerfiles to reduce image size and build time.
-- [ ] Build Docker images and test locally.
-- [ ] **Documentation**: Document Dockerfile configurations, optimizations, and testing results.
+- **Inventory-app**
+  - [ ] Update Dockerfile.
+  - [ ] Build and test Docker image locally.
+  - [ ] Deploy in ECS (cluster, task, deployment).
 
-### Day 5: Deploying with AWS ECS
-- [ ] Set up AWS ECS cluster and task definitions.
-- [ ] Deploy Dockerized microservices to ECS.
-- [ ] Configure ECS services and tasks.
-- [ ] **Documentation**: Record ECS setup, deployment steps, and configurations. Create diagrams of the ECS cluster setup.
+- **Billing-app**
+  - [ ] Update Dockerfile.
+  - [ ] Build and test Docker image locally.
+  - [ ] Deploy in ECS (cluster, task, deployment).
+
+- **Billing-database**
+  - [ ] Update Dockerfile.
+  - [ ] Build and test Docker image locally.
+  - [ ] Deploy in ECS (cluster, task, deployment).
+
+- **RabbitMQ**
+  - [ ] Update Dockerfile.
+  - [ ] Build and test Docker image locally.
+  - [ ] Deploy in ECS (cluster, task, deployment).
+
+- **API-gateway**
+  - [ ] Update Dockerfile.
+  - [ ] Build and test Docker image locally.
+  - [ ] Deploy in ECS (cluster, task, deployment).
 
 ### Day 6: Load Balancing and Service Communication
 - [ ] Set up AWS Elastic Load Balancer (ELB) for the ECS services.
