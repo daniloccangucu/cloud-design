@@ -41,7 +41,14 @@
   - [ ] Deploy in ECS (cluster, task, deployment).
 
 ### Day 6: Load Balancing and Service Communication
-- [ ] Set up AWS Elastic Load Balancer (ELB) for the ECS services.
+- Set up AWS Elastic Load Balancer (ELB) for the ECS services.
+  - [X] Network Load Balancer for inventory-database.
+  - [ ] Network Load Balancer for inventory-app.
+  - [ ] Network Load Balancer for billing-database.
+  - [ ] Network Load Balancer for billing-app.
+  - [ ] Network Load Balancer for rabbitmq.
+  - [ ] Network Load Balancer for api-gateway.
+
 - [ ] Ensure secure communication between services.
 - [ ] Test the load balancing and inter-service communication.
 - [ ] **Documentation**: Document load balancing setup, security configurations, and test results.

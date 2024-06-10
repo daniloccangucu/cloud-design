@@ -8,18 +8,19 @@ resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"  # The IP range for the VPC, allows 65,536 addresses
 }
 
-# Create a public subnet within the VPC
-resource "aws_subnet" "public" {
+# Create 2 public subnets within the VPC
+resource "aws_subnet" "public_az1" {
   vpc_id                  = aws_vpc.main.id  # Associate the subnet with the VPC created above
-  cidr_block              = "10.0.1.0/24"    # The IP range for the subnet, allows 256 addresses
-  map_public_ip_on_launch = true             # Automatically assign public IP addresses to instances launched in this subnet
+  cidr_block              = "10.0.3.0/24"  # The IP range for the subnet, allows 256 addresses
+  map_public_ip_on_launch = true
+  availability_zone       = "eu-north-1a"
 }
 
-# Create a private subnet within the VPC
-resource "aws_subnet" "private" {
-  vpc_id     = aws_vpc.main.id  # Associate the subnet with the VPC created above
-  cidr_block = "10.0.2.0/24"    # The IP range for the subnet, allows 256 addresses
-  # No public IP addresses will be automatically assigned to instances in this subnet
+resource "aws_subnet" "public_az2" {
+  vpc_id                  = aws_vpc.main.id  # Associate the subnet with the VPC created above
+  cidr_block              = "10.0.4.0/24"  # The IP range for the subnet, allows 256 addresses
+  map_public_ip_on_launch = true
+  availability_zone       = "eu-north-1b"
 }
 
 # Create an Internet Gateway to allow internet access to the VPC
@@ -37,10 +38,34 @@ resource "aws_route_table" "public" {
   }
 }
 
-# Associate the public subnet with the Route Table
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id  # Specify the public subnet
+# Associate the public subnets with the Route Table
+resource "aws_route_table_association" "public_az1" {
+  subnet_id      = aws_subnet.public_az1.id   # Specify the public subnet
   route_table_id = aws_route_table.public.id  # Associate with the public Route Table
+}
+
+resource "aws_route_table_association" "public_az2" {
+  subnet_id      = aws_subnet.public_az2.id  # Specify the public subnet
+  route_table_id = aws_route_table.public.id  # Associate with the public Route Table
+}
+
+# Security group for Network Load Balancer
+resource "aws_security_group" "inventory_nlb_sg" {
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 # Create ECS Cluster for Inventory Services
@@ -48,7 +73,7 @@ resource "aws_ecs_cluster" "inventory-cluster" {
   name = "inventory-cluster"
 }
 
-# Create Security Group for ECS Service
+# Security group for ECS Service
 resource "aws_security_group" "inventory_database" {
   vpc_id = aws_vpc.main.id
 
@@ -67,6 +92,36 @@ resource "aws_security_group" "inventory_database" {
   }
 }
 
+# Create Network Load Balancer
+resource "aws_lb" "inventory_nlb" {
+  name               = "inventory-nlb"
+  internal           = false
+  load_balancer_type = "network"
+  subnets            = [aws_subnet.public_az1.id, aws_subnet.public_az2.id]
+}
+
+# Create Target Group
+resource "aws_lb_target_group" "inventory_tg" {
+  name       = "inventory-tg"
+  port       = 5432
+  protocol   = "TCP"
+  vpc_id     = aws_vpc.main.id
+  target_type = "ip"
+}
+
+# Create Listener
+resource "aws_lb_listener" "tcp" {
+  load_balancer_arn = aws_lb.inventory_nlb.arn
+  port              = "5432"
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.inventory_tg.arn
+  }
+}
+
+# Create ECS Task Definition
 resource "aws_ecs_task_definition" "inventory_database" {
   family                   = "inventory_database"
   network_mode             = "awsvpc"
@@ -95,6 +150,7 @@ resource "aws_ecs_task_definition" "inventory_database" {
   }])
 }
 
+# Create ECS Service
 resource "aws_ecs_service" "inventory_database" {
   name            = "inventory-database-service"
   cluster         = aws_ecs_cluster.inventory-cluster.id
@@ -105,8 +161,14 @@ resource "aws_ecs_service" "inventory_database" {
   platform_version = "LATEST"
 
   network_configuration {
-    subnets         = [aws_subnet.public.id]
+    subnets         = [aws_subnet.public_az1.id, aws_subnet.public_az2.id]
     security_groups = [aws_security_group.inventory_database.id]
     assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.inventory_tg.arn
+    container_name   = "inventory-database"
+    container_port   = 5432
   }
 }
