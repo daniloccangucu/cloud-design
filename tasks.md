@@ -14,26 +14,25 @@
   - [x] Updated Dockerfile.
   - [x] Built and tested Docker image locally.
   - [x] Deployed in ECS (cluster, task, deployment).
+  - [ ] Logs in CloudWatch
 
 - **Inventory-app**
-  - [ ] Update Dockerfile.
-  - [ ] Build and test Docker image locally.
-  - [ ] Deploy in ECS (cluster, task, deployment).
+  - [x] Deploy in ECS (cluster, task, deployment).
+  - [x] Logs in CloudWatch
+
+- **Billing-database**
+  - [x] Update Dockerfile.
+  - [x] Deploy in ECS (cluster, task, deployment).
+  - [x] Logs in CloudWatch
 
 - **Billing-app**
   - [ ] Update Dockerfile.
   - [ ] Build and test Docker image locally.
   - [ ] Deploy in ECS (cluster, task, deployment).
 
-- **Billing-database**
-  - [ ] Update Dockerfile.
-  - [ ] Build and test Docker image locally.
-  - [ ] Deploy in ECS (cluster, task, deployment).
-
 - **RabbitMQ**
-  - [ ] Update Dockerfile.
-  - [ ] Build and test Docker image locally.
-  - [ ] Deploy in ECS (cluster, task, deployment).
+  - [x] Update Dockerfile.
+  - [x] Deploy in ECS (cluster, task, deployment).
 
 - **API-gateway**
   - [ ] Update Dockerfile.
@@ -42,14 +41,11 @@
 
 ### Day 6: Load Balancing and Service Communication
 - Set up AWS Elastic Load Balancer (ELB) for the ECS services.
-  - [X] Network Load Balancer for inventory-database.
-  - [ ] Network Load Balancer for inventory-app.
-  - [ ] Network Load Balancer for billing-database.
-  - [ ] Network Load Balancer for billing-app.
-  - [ ] Network Load Balancer for rabbitmq.
+  - [x] Network Load Balancer for inventory services.
+  - [x] Network Load Balancer for billing services.
   - [ ] Network Load Balancer for api-gateway.
 
-- [ ] Ensure secure communication between services.
+- [x] Ensure secure communication between services.
 - [ ] Test the load balancing and inter-service communication.
 - [ ] **Documentation**: Document load balancing setup, security configurations, and test results.
 
@@ -62,7 +58,7 @@
 - [ ] **Documentation**: Record security configurations, setup processes, and testing results. Create security architecture diagrams.
 
 ### Day 8: Monitoring and Logging
-- [ ] Set up CloudWatch for monitoring metrics and alarms.
+- [x] Set up CloudWatch for monitoring metrics and alarms.
 - [ ] Enable CloudTrail and configure S3 for log storage.
 - [ ] Ensure alerts and notifications via SNS.
 - [ ] **Documentation**: Record monitoring setup, logging mechanisms, and alert configurations.
