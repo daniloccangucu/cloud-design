@@ -1,3 +1,5 @@
+Sure, here's an updated README that reflects your progress and setup:
+
 ## cloud-design
 
 ### Selection of AWS as the Cloud Provider
@@ -18,12 +20,22 @@ I chose AWS for its comprehensive services, global presence, and robust security
 
 ### Initial Infrastructure Design
 - **Design basic infrastructure (VPC, subnets, route tables)**:
-  - Designed a VPC with CIDR block `10.0.0.0/16`.
-  - Created public (`10.0.1.0/24`) and private (`10.0.2.0/24`) subnets.
-  - Configured an Internet Gateway and a Route Table for the public subnet.
-
-- **Create initial Terraform configuration files for VPC setup**:
-  - Defined resources in `main.tf` for VPC, subnets, Internet Gateway, and Route Table.
+  - Designed three VPCs for Inventory, Billing, and API Gateway services with CIDR blocks `10.0.0.0/16`, `10.1.0.0/16`, and `10.2.0.0/16` respectively.
+  - Created public subnets within each VPC.
+  - Configured Internet Gateways and Route Tables for each public subnet.
 
 ### Network Architecture Diagram
 ![Network Architecture Diagram](https://i.postimg.cc/vZCpBwm8/diagram-export-07-06-2024-18-57-55.png)
+
+### Terraform Configuration
+
+The Terraform configuration includes the setup of VPCs, subnets, internet gateways, route tables, security groups, load balancers, target groups, ECS clusters, task definitions, services, and CloudWatch log groups.
+
+### Summary of Terraform Configuration:
+- Defined the AWS provider and region.
+- Created three VPCs for Inventory, Billing, and API Gateway services.
+- Set up public subnets, internet gateways, and route tables.
+- Configured security groups for each service.
+- Set up Network Load Balancers and Target Groups.
+- Created ECS clusters, task definitions, and services for each component.
+- Configured CloudWatch log groups for monitoring.

@@ -13,6 +13,11 @@ resource "aws_vpc" "billing_vpc" {
   cidr_block = "10.1.0.0/16"  # The IP range for the VPC, allows 65,536 addresses
 }
 
+# Create a Virtual Private Cloud (VPC) for Api Gateway Service
+resource "aws_vpc" "api-gateway_vpc" {
+  cidr_block = "10.1.0.0/16"  # The IP range for the VPC, allows 65,536 addresses
+}
+
 # Create 2 public subnets within the Inventory VPC
 resource "aws_subnet" "inventory_public_az1" {
   vpc_id                  = aws_vpc.inventory_vpc.id
@@ -43,6 +48,21 @@ resource "aws_subnet" "billing_public_az2" {
   availability_zone       = "eu-north-1b"
 }
 
+# Create 2 public subnets within the Api Gateway VPC
+resource "aws_subnet" "api-gateway_public_az1" {
+  vpc_id                  = aws_vpc.api-gateway_vpc.id
+  cidr_block              = "10.1.1.0/24"
+  map_public_ip_on_launch = true
+  availability_zone       = "eu-north-1a"
+}
+
+resource "aws_subnet" "api-gateway_public_az2" {
+  vpc_id                  = aws_vpc.api-gateway_vpc.id
+  cidr_block              = "10.1.2.0/24"
+  map_public_ip_on_launch = true
+  availability_zone       = "eu-north-1b"
+}
+
 # Create Internet Gateways for both VPCs
 resource "aws_internet_gateway" "inventory_igw" {
   vpc_id = aws_vpc.inventory_vpc.id
@@ -50,6 +70,10 @@ resource "aws_internet_gateway" "inventory_igw" {
 
 resource "aws_internet_gateway" "billing_igw" {
   vpc_id = aws_vpc.billing_vpc.id
+}
+
+resource "aws_internet_gateway" "api-gateway_igw" {
+  vpc_id = aws_vpc.api-gateway_vpc.id
 }
 
 # Create Route Tables for the public subnets in both VPCs
@@ -68,6 +92,15 @@ resource "aws_route_table" "billing_public_rt" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.billing_igw.id
+  }
+}
+
+resource "aws_route_table" "api-gateway_public_rt" {
+  vpc_id = aws_vpc.api-gateway_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.api-gateway_igw.id
   }
 }
 
@@ -90,6 +123,16 @@ resource "aws_route_table_association" "billing_public_az1" {
 resource "aws_route_table_association" "billing_public_az2" {
   subnet_id      = aws_subnet.billing_public_az2.id
   route_table_id = aws_route_table.billing_public_rt.id
+}
+
+resource "aws_route_table_association" "api-gateway_public_az1" {
+  subnet_id      = aws_subnet.api-gateway_public_az1.id
+  route_table_id = aws_route_table.api-gateway_public_rt.id
+}
+
+resource "aws_route_table_association" "api-gateway_public_az2" {
+  subnet_id      = aws_subnet.api-gateway_public_az2.id
+  route_table_id = aws_route_table.api-gateway_public_rt.id
 }
 
 # Security Groups for Inventory Services
@@ -184,6 +227,24 @@ resource "aws_security_group" "billing_database" {
   }
 }
 
+resource "aws_security_group" "billing_app" {
+  vpc_id = aws_vpc.billing_vpc.id
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 # Security group for RabbitMQ
 resource "aws_security_group" "rabbitmq" {
   vpc_id = aws_vpc.billing_vpc.id
@@ -210,7 +271,44 @@ resource "aws_security_group" "rabbitmq" {
   }
 }
 
-# Create Network Load Balancers for both VPCs
+# Security Groups for Api Gateway Service
+resource "aws_security_group" "api-gateway_nlb_sg" {
+  vpc_id = aws_vpc.api-gateway_vpc.id
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "api-gateway" {
+  vpc_id = aws_vpc.api-gateway_vpc.id
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Create Network Load Balancers for VPCs
 resource "aws_lb" "inventory_nlb" {
   name               = "inventory-nlb"
   internal           = false
@@ -223,6 +321,13 @@ resource "aws_lb" "billing_nlb" {
   internal           = false
   load_balancer_type = "network"
   subnets            = [aws_subnet.billing_public_az1.id, aws_subnet.billing_public_az2.id]
+}
+
+resource "aws_lb" "api-gateway_nlb" {
+  name               = "api-gateway-nlb"
+  internal           = false
+  load_balancer_type = "network"
+  subnets            = [aws_subnet.api-gateway_public_az1.id, aws_subnet.api-gateway_public_az2.id]
 }
 
 # Create Target Groups
@@ -250,11 +355,27 @@ resource "aws_lb_target_group" "billing_tg" {
   target_type = "ip"
 }
 
+resource "aws_lb_target_group" "billing_app_tg" {
+  name       = "billing-app-tg"
+  port       = 8080
+  protocol   = "TCP"
+  vpc_id     = aws_vpc.billing_vpc.id
+  target_type = "ip"
+}
+
 resource "aws_lb_target_group" "rabbitmq_tg" {
   name       = "rabbitmq-tg"
   port       = 5672
   protocol   = "TCP"
   vpc_id     = aws_vpc.billing_vpc.id
+  target_type = "ip"
+}
+
+resource "aws_lb_target_group" "api-gateway_tg" {
+  name       = "api-gateway-tg"
+  port       = 3000
+  protocol   = "TCP"
+  vpc_id     = aws_vpc.api-gateway_vpc.id
   target_type = "ip"
 }
 
@@ -292,6 +413,17 @@ resource "aws_lb_listener" "billing_db_listener" {
   }
 }
 
+resource "aws_lb_listener" "billing_app_listener" {
+  load_balancer_arn = aws_lb.billing_nlb.arn
+  port              = "8080"
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.billing_app_tg.arn
+  }
+}
+
 resource "aws_lb_listener" "rabbitmq_listener" {
   load_balancer_arn = aws_lb.billing_nlb.arn
   port              = "5672"
@@ -303,6 +435,17 @@ resource "aws_lb_listener" "rabbitmq_listener" {
   }
 }
 
+resource "aws_lb_listener" "api-gateway_listener" {
+  load_balancer_arn = aws_lb.api-gateway_nlb.arn
+  port              = "3000"
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api-gateway_tg.arn
+  }
+}
+
 # Create ECS Clusters
 resource "aws_ecs_cluster" "inventory_cluster" {
   name = "inventory-cluster"
@@ -310,6 +453,10 @@ resource "aws_ecs_cluster" "inventory_cluster" {
 
 resource "aws_ecs_cluster" "billing_cluster" {
   name = "billing-cluster"
+}
+
+resource "aws_ecs_cluster" "api-gateway_cluster" {
+  name = "api_gateway-cluster"
 }
 
 # Create ECS Task Definitions
@@ -477,6 +624,118 @@ resource "aws_ecs_task_definition" "rabbitmq" {
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
 }
 
+resource "aws_ecs_task_definition" "billing_app" {
+  family                   = "billing_app"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([{
+    name  = "billing-app"
+    image = "danilocangucu/billing-app-cloud_design:latest"
+    essential = true
+    portMappings = [{
+      containerPort = 8080
+      hostPort      = 8080
+    }]
+    environment = [
+      {
+        name  = "PG_2_USER"
+        value = "postgres"
+      },
+      {
+        name  = "PG_2_PASSWORD"
+        value = "t3st"
+      },
+      {
+        name  = "PG_2_DATABASE"
+        value = "orders"
+      },
+      {
+        name  = "PGHOST"
+        value = aws_lb.billing_nlb.dns_name  # Value from LB dynamically
+      },
+      {
+        name  = "PGPORT"
+        value = "5432"
+      },
+      {
+        name  = "BILLING_PORT"
+        value = "8080"
+      },
+      {
+        name  = "RABBITMQ_URL"
+        value = "amqp://danilo:dan1234@${aws_lb.billing_nlb.dns_name}:5672/"
+      },
+      {
+        name  = "RABBITMQ_QUEUE"
+        value = "billing_queue"
+      }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "/ecs/billing-app"
+        awslogs-region        = "eu-north-1"
+        awslogs-stream-prefix = "ecs"
+      }
+    }
+  }])
+
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+}
+
+resource "aws_ecs_task_definition" "api-gateway" {
+  family                   = "api-gateway"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([{
+    name  = "api-gateway"
+    image = "danilocangucu/api-gateway-cloud_design:latest"
+    essential = true
+    portMappings = [{
+      containerPort = 3000
+      hostPort      = 3000
+    }]
+    environment = [
+      {
+        name  = "INVENTORY_API_URL"
+        value = "${aws_lb.inventory_nlb.dns_name}:8080/movies" # LB from inventory-app
+      },
+      {
+        name  = "RABBITMQ_URL"
+        value = "amqp://danilo:dan1234@${aws_lb.billing_nlb.dns_name}:5672/" # LB from billing
+      },
+      {
+        name  = "RABBITMQ_QUEUE"
+        value = "billing_queue"
+      },
+      {
+        name  = "GATEWAY_PORT"
+        value = "3000"
+      },
+      {
+        name  = "GATEWAY_HOST"
+        value = "::"
+      }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "/ecs/api-gateway"
+        awslogs-region        = "eu-north-1"
+        awslogs-stream-prefix = "ecs"
+      }
+    }
+  }])
+
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+}
+
 # IAM role for ECS tasks executions
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "ecsTaskExecutionRole"
@@ -511,6 +770,16 @@ resource "aws_cloudwatch_log_group" "billing_database" {
 
 resource "aws_cloudwatch_log_group" "rabbitmq" {
   name              = "/ecs/rabbitmq"
+  retention_in_days = 7
+}
+
+resource "aws_cloudwatch_log_group" "billing_app" {
+  name              = "/ecs/billing-app"
+  retention_in_days = 7
+}
+
+resource "aws_cloudwatch_log_group" "api-gateway" {
+  name              = "/ecs/api-gateway"
   retention_in_days = 7
 }
 
@@ -603,11 +872,59 @@ resource "aws_ecs_service" "rabbitmq" {
   }
 }
 
+resource "aws_ecs_service" "billing_app" {
+  name            = "billing-app-service"
+  cluster         = aws_ecs_cluster.billing_cluster.id
+  task_definition = aws_ecs_task_definition.billing_app.arn
+  desired_count   = 1
+
+  launch_type = "FARGATE"
+  platform_version = "LATEST"
+
+  network_configuration {
+    subnets         = [aws_subnet.billing_public_az1.id, aws_subnet.billing_public_az2.id]
+    security_groups = [aws_security_group.billing_app.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.billing_app_tg.arn
+    container_name   = "billing-app"
+    container_port   = 8080
+  }
+}
+
+resource "aws_ecs_service" "api-gateway" {
+  name            = "api-gateway"
+  cluster         = aws_ecs_cluster.api-gateway_cluster.id
+  task_definition = aws_ecs_task_definition.api-gateway.arn
+  desired_count   = 1
+
+  launch_type = "FARGATE"
+  platform_version = "LATEST"
+
+  network_configuration {
+    subnets         = [aws_subnet.api-gateway_public_az1.id, aws_subnet.api-gateway_public_az2.id]
+    security_groups = [aws_security_group.api-gateway.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.api-gateway_tg.arn
+    container_name   = "api-gateway"
+    container_port   = 3000
+  }
+}
+
 # Output Load Balancer DNS Names
-output "inventory_database_lb_dns" {
+output "inventory_lb_dns" {
   value = aws_lb.inventory_nlb.dns_name
 }
 
-output "billing_database_lb_dns" {
+output "billing_lb_dns" {
   value = aws_lb.billing_nlb.dns_name
+}
+
+output "api-gateway_lb_dns" {
+  value = aws_lb.api-gateway_nlb.dns_name
 }

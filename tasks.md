@@ -26,24 +26,22 @@
   - [x] Logs in CloudWatch
 
 - **Billing-app**
-  - [ ] Update Dockerfile.
-  - [ ] Build and test Docker image locally.
-  - [ ] Deploy in ECS (cluster, task, deployment).
+  - [x] Update Dockerfile.
+  - [x] Deploy in ECS (cluster, task, deployment).
 
 - **RabbitMQ**
   - [x] Update Dockerfile.
   - [x] Deploy in ECS (cluster, task, deployment).
 
 - **API-gateway**
-  - [ ] Update Dockerfile.
-  - [ ] Build and test Docker image locally.
-  - [ ] Deploy in ECS (cluster, task, deployment).
+  - [x] Update Dockerfile.
+  - [x] Deploy in ECS (cluster, task, deployment).
 
 ### Day 6: Load Balancing and Service Communication
 - Set up AWS Elastic Load Balancer (ELB) for the ECS services.
   - [x] Network Load Balancer for inventory services.
   - [x] Network Load Balancer for billing services.
-  - [ ] Network Load Balancer for api-gateway.
+  - [x] Network Load Balancer for api-gateway.
 
 - [x] Ensure secure communication between services.
 - [ ] Test the load balancing and inter-service communication.
