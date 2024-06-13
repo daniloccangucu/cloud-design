@@ -459,6 +459,254 @@ resource "aws_ecs_cluster" "api-gateway_cluster" {
   name = "api_gateway-cluster"
 }
 
+# CloudWatch Alarms
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_inventory" {
+  alarm_name          = "ecs-cpu-high-inventory"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "70"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.inventory_cluster.name
+    ServiceName = aws_ecs_service.inventory_app.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.inventory_scale_up_policy.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_low_inventory" {
+  alarm_name          = "ecs-cpu-low-inventory"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "30"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.inventory_cluster.name
+    ServiceName = aws_ecs_service.inventory_app.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.inventory_scale_down_policy.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_billing" {
+  alarm_name          = "ecs-cpu-high-billing"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "70"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.billing_cluster.name
+    ServiceName = aws_ecs_service.billing_app.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.billing_scale_up_policy.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_low_billing" {
+  alarm_name          = "ecs-cpu-low-billing"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "30"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.billing_cluster.name
+    ServiceName = aws_ecs_service.billing_app.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.billing_scale_down_policy.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high_api-gateway" {
+  alarm_name          = "ecs-cpu-high-api-gateway"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "70"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.api-gateway_cluster.name
+    ServiceName = aws_ecs_service.api-gateway.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.api-gateway_scale_up_policy.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_low_api-gateway" {
+  alarm_name          = "ecs-cpu-low-api-gateway"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "30"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.api-gateway_cluster.name
+    ServiceName = aws_ecs_service.api-gateway.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.api-gateway_scale_down_policy.arn]
+}
+
+# Auto Scaling Policies
+resource "aws_appautoscaling_target" "inventory_app" {
+  max_capacity       = 10
+  min_capacity       = 1
+  resource_id        = "service/${aws_ecs_cluster.inventory_cluster.name}/${aws_ecs_service.inventory_app.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "inventory_scale_up_policy" {
+  name               = "inventory-scale-up"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.inventory_app.resource_id
+  scalable_dimension = aws_appautoscaling_target.inventory_app.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.inventory_app.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 300
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      scaling_adjustment = 1
+      metric_interval_lower_bound = 0
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "inventory_scale_down_policy" {
+  name               = "inventory-scale-down"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.inventory_app.resource_id
+  scalable_dimension = aws_appautoscaling_target.inventory_app.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.inventory_app.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 300
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      scaling_adjustment = -1
+      metric_interval_upper_bound = 0
+    }
+  }
+}
+
+resource "aws_appautoscaling_target" "billing_app" {
+  max_capacity       = 10
+  min_capacity       = 1
+  resource_id        = "service/${aws_ecs_cluster.billing_cluster.name}/${aws_ecs_service.billing_app.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "billing_scale_up_policy" {
+  name               = "billing-scale-up"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.billing_app.resource_id
+  scalable_dimension = aws_appautoscaling_target.billing_app.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.billing_app.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 300
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      scaling_adjustment = 1
+      metric_interval_lower_bound = 0
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "billing_scale_down_policy" {
+  name               = "billing-scale-down"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.billing_app.resource_id
+  scalable_dimension = aws_appautoscaling_target.billing_app.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.billing_app.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 300
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      scaling_adjustment = -1
+      metric_interval_upper_bound = 0
+    }
+  }
+}
+
+resource "aws_appautoscaling_target" "api-gateway" {
+  max_capacity       = 10
+  min_capacity       = 1
+  resource_id        = "service/${aws_ecs_cluster.api-gateway_cluster.name}/${aws_ecs_service.api-gateway.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "api-gateway_scale_up_policy" {
+  name               = "api-gateway-scale-up"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.api-gateway.resource_id
+  scalable_dimension = aws_appautoscaling_target.api-gateway.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.api-gateway.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 300
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      scaling_adjustment = 1
+      metric_interval_lower_bound = 0
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "api-gateway_scale_down_policy" {
+  name               = "api-gateway-scale-down"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.api-gateway.resource_id
+  scalable_dimension = aws_appautoscaling_target.api-gateway.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.api-gateway.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 300
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      scaling_adjustment = -1
+      metric_interval_upper_bound = 0
+    }
+  }
+}
+
 # Create ECS Task Definitions
 resource "aws_ecs_task_definition" "inventory_database" {
   family                   = "inventory_database"
@@ -485,7 +733,17 @@ resource "aws_ecs_task_definition" "inventory_database" {
         value = "t3st"
       }
     ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "/ecs/inventory-database"
+        awslogs-region        = "eu-north-1"
+        awslogs-stream-prefix = "ecs"
+      }
+    }
   }])
+
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
 }
 
 resource "aws_ecs_task_definition" "inventory_app" {
@@ -758,6 +1016,11 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 # CloudWatch log groups
+resource "aws_cloudwatch_log_group" "inventory_database" {
+  name              = "/ecs/inventory-database"
+  retention_in_days = 7
+}
+
 resource "aws_cloudwatch_log_group" "inventory_app" {
   name              = "/ecs/inventory-app"
   retention_in_days = 7
