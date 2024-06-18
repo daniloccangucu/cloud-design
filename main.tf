@@ -379,6 +379,31 @@ resource "aws_lb_target_group" "api-gateway_tg" {
   target_type = "ip"
 }
 
+# Retrieve data encrypted secrets
+data "aws_secretsmanager_secret" "postgres_user" {
+  name = "postgres_user"
+}
+
+data "aws_secretsmanager_secret" "postgres_password" {
+  name = "postgres_password"
+}
+
+data "aws_secretsmanager_secret" "postgres_database" {
+  name = "postgres_database"
+}
+
+data "aws_secretsmanager_secret" "rabbitmq_user" {
+  name = "rabbitmq_user"
+}
+
+data "aws_secretsmanager_secret" "rabbitmq_password" {
+  name = "rabbitmq_password"
+}
+
+data "aws_secretsmanager_secret" "pg_2_database" {
+  name = "pg_2_database"
+}
+
 # Create Listeners
 resource "aws_lb_listener" "inventory_db_listener" {
   load_balancer_arn = aws_lb.inventory_nlb.arn
@@ -726,11 +751,11 @@ resource "aws_ecs_task_definition" "inventory_database" {
     environment = [
       {
         name  = "POSTGRES_USER"
-        value = "postgres"
+        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
       },
       {
         name  = "POSTGRES_PASSWORD"
-        value = "t3st"
+        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
       }
     ]
     logConfiguration = {
@@ -764,15 +789,15 @@ resource "aws_ecs_task_definition" "inventory_app" {
     environment = [
       {
         name  = "PGUSER"
-        value = "postgres"
+        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
       },
       {
         name  = "PGPASSWORD"
-        value = "t3st"
+        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
       },
       {
         name  = "PGDATABASE"
-        value = "movies"
+        valueFrom = data.aws_secretsmanager_secret.postgres_database.arn
       },
       {
         name  = "PGHOST"
@@ -818,11 +843,11 @@ resource "aws_ecs_task_definition" "billing_database" {
     environment = [
       {
         name  = "POSTGRES_USER"
-        value = "postgres"
+        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
       },
       {
         name  = "POSTGRES_PASSWORD"
-        value = "t3st"
+        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
       }
     ]
     logConfiguration = {
@@ -862,11 +887,11 @@ resource "aws_ecs_task_definition" "rabbitmq" {
     environment = [
       {
         name  = "RABBITMQ_DEFAULT_USER"
-        value = "danilo"
+        valueFrom = data.aws_secretsmanager_secret.rabbitmq_user.arn
       },
       {
         name  = "RABBITMQ_DEFAULT_PASS"
-        value = "dan1234"
+        valueFrom = data.aws_secretsmanager_secret.rabbitmq_password.arn
       }
     ]
     logConfiguration = {
@@ -900,15 +925,15 @@ resource "aws_ecs_task_definition" "billing_app" {
     environment = [
       {
         name  = "PG_2_USER"
-        value = "postgres"
+        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
       },
       {
         name  = "PG_2_PASSWORD"
-        value = "t3st"
+        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
       },
       {
         name  = "PG_2_DATABASE"
-        value = "orders"
+        valueFrom = data.aws_secretsmanager_secret.pg_2_database.arn
       },
       {
         name  = "PGHOST"
