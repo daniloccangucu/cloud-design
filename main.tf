@@ -135,6 +135,84 @@ resource "aws_route_table_association" "api-gateway_public_az2" {
   route_table_id = aws_route_table.api-gateway_public_rt.id
 }
 
+# Create Cognito User Pool and User Pool Client
+resource "aws_cognito_user_pool" "api_gateway_user_pool" {
+  name = "api-gateway-user-pool"
+}
+
+resource "aws_cognito_user_pool_client" "api_gateway_user_pool_client" {
+  name         = "api-gateway-client"
+  user_pool_id = aws_cognito_user_pool.api_gateway_user_pool.id
+
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH"
+  ] 
+}
+
+# Create API Gateway REST API
+resource "aws_api_gateway_rest_api" "api_gateway" {
+  name        = "api-gateway"
+  description = "API Gateway for ECS services"
+}
+
+# Create a Resource in API Gateway
+resource "aws_api_gateway_resource" "api_gateway_resource" {
+  rest_api_id = aws_api_gateway_rest_api.api_gateway.id
+  parent_id   = aws_api_gateway_rest_api.api_gateway.root_resource_id
+  path_part   = "{proxy+}"
+}
+
+# Create an Authorizer in API Gateway
+resource "aws_api_gateway_authorizer" "api_gateway_authorizer" {
+  rest_api_id = aws_api_gateway_rest_api.api_gateway.id
+  name        = "api-gateway-authorizer"
+  type        = "COGNITO_USER_POOLS"
+  provider_arns = [
+    aws_cognito_user_pool.api_gateway_user_pool.arn
+  ]
+  identity_source = "method.request.header.Authorization"
+}
+
+# Create a Method in API Gateway
+resource "aws_api_gateway_method" "api_gateway_method" {
+  rest_api_id   = aws_api_gateway_rest_api.api_gateway.id
+  resource_id   = aws_api_gateway_resource.api_gateway_resource.id
+  http_method   = "ANY"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.api_gateway_authorizer.id
+  request_parameters = {
+    "method.request.path.proxy" = true
+  }
+}
+
+# Integrate API Gateway with ECS Service
+resource "aws_api_gateway_integration" "api_gateway_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.api_gateway.id
+  resource_id             = aws_api_gateway_resource.api_gateway_resource.id
+  http_method             = aws_api_gateway_method.api_gateway_method.http_method
+  type                    = "HTTP_PROXY"
+  integration_http_method = "ANY"
+  uri                     = "http://${aws_lb.api-gateway_nlb.dns_name}:3000/{proxy}"
+  request_parameters = {
+    "integration.request.path.proxy" = "method.request.path.proxy"
+  }
+}
+
+# Deploy the API
+resource "aws_api_gateway_deployment" "api_gateway_deployment" {
+  depends_on = [
+    aws_api_gateway_integration.api_gateway_integration
+  ]
+  rest_api_id = aws_api_gateway_rest_api.api_gateway.id
+  stage_name  = "prod"
+}
+
+# Output the API Gateway endpoint
+output "api_gateway_endpoint" {
+  value = "${aws_api_gateway_deployment.api_gateway_deployment.invoke_url}/"
+}
+
 # Security Groups for Inventory Services
 resource "aws_security_group" "inventory_nlb_sg" {
   vpc_id = aws_vpc.inventory_vpc.id
@@ -379,29 +457,53 @@ resource "aws_lb_target_group" "api-gateway_tg" {
   target_type = "ip"
 }
 
-# Retrieve data encrypted secrets
+# Fetch the secrets from Secrets Manager
 data "aws_secretsmanager_secret" "postgres_user" {
   name = "postgres_user"
+}
+
+data "aws_secretsmanager_secret_version" "postgres_user_version" {
+  secret_id = data.aws_secretsmanager_secret.postgres_user.id
 }
 
 data "aws_secretsmanager_secret" "postgres_password" {
   name = "postgres_password"
 }
 
+data "aws_secretsmanager_secret_version" "postgres_password_version" {
+  secret_id = data.aws_secretsmanager_secret.postgres_password.id
+}
+
 data "aws_secretsmanager_secret" "postgres_database" {
   name = "postgres_database"
+}
+
+data "aws_secretsmanager_secret_version" "postgres_database_version" {
+  secret_id = data.aws_secretsmanager_secret.postgres_database.id
 }
 
 data "aws_secretsmanager_secret" "rabbitmq_user" {
   name = "rabbitmq_user"
 }
 
+data "aws_secretsmanager_secret_version" "rabbitmq_user_version" {
+  secret_id = data.aws_secretsmanager_secret.rabbitmq_user.id
+}
+
 data "aws_secretsmanager_secret" "rabbitmq_password" {
   name = "rabbitmq_password"
 }
 
+data "aws_secretsmanager_secret_version" "rabbitmq_password_version" {
+  secret_id = data.aws_secretsmanager_secret.rabbitmq_password.id
+}
+
 data "aws_secretsmanager_secret" "pg_2_database" {
   name = "pg_2_database"
+}
+
+data "aws_secretsmanager_secret_version" "pg_2_database_version" {
+  secret_id = data.aws_secretsmanager_secret.pg_2_database.id
 }
 
 # Create Listeners
@@ -751,11 +853,11 @@ resource "aws_ecs_task_definition" "inventory_database" {
     environment = [
       {
         name  = "POSTGRES_USER"
-        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
+        value = "postgres"
       },
       {
         name  = "POSTGRES_PASSWORD"
-        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
+        value = "t3st"
       }
     ]
     logConfiguration = {
@@ -789,15 +891,15 @@ resource "aws_ecs_task_definition" "inventory_app" {
     environment = [
       {
         name  = "PGUSER"
-        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
+        value = "postgres"
       },
       {
         name  = "PGPASSWORD"
-        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
+        value = "t3st"
       },
       {
         name  = "PGDATABASE"
-        valueFrom = data.aws_secretsmanager_secret.postgres_database.arn
+        value = "movies"
       },
       {
         name  = "PGHOST"
@@ -843,11 +945,11 @@ resource "aws_ecs_task_definition" "billing_database" {
     environment = [
       {
         name  = "POSTGRES_USER"
-        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
+        value = "postgres"
       },
       {
         name  = "POSTGRES_PASSWORD"
-        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
+        value = "t3st"
       }
     ]
     logConfiguration = {
@@ -887,11 +989,11 @@ resource "aws_ecs_task_definition" "rabbitmq" {
     environment = [
       {
         name  = "RABBITMQ_DEFAULT_USER"
-        valueFrom = data.aws_secretsmanager_secret.rabbitmq_user.arn
+        value = "danilo"
       },
       {
         name  = "RABBITMQ_DEFAULT_PASS"
-        valueFrom = data.aws_secretsmanager_secret.rabbitmq_password.arn
+        value = "dan1234"
       }
     ]
     logConfiguration = {
@@ -925,15 +1027,15 @@ resource "aws_ecs_task_definition" "billing_app" {
     environment = [
       {
         name  = "PG_2_USER"
-        valueFrom = data.aws_secretsmanager_secret.postgres_user.arn
+        value = "postgres"
       },
       {
         name  = "PG_2_PASSWORD"
-        valueFrom = data.aws_secretsmanager_secret.postgres_password.arn
+        value = "t3st"
       },
       {
         name  = "PG_2_DATABASE"
-        valueFrom = data.aws_secretsmanager_secret.pg_2_database.arn
+        valueFrom = "orders"
       },
       {
         name  = "PGHOST"
@@ -1215,4 +1317,8 @@ output "billing_lb_dns" {
 
 output "api-gateway_lb_dns" {
   value = aws_lb.api-gateway_nlb.dns_name
+}
+
+output "cognito_user_pool_client_id" {
+  value = aws_cognito_user_pool_client.api_gateway_user_pool_client.id
 }
